@@ -54,7 +54,7 @@ jobs:
           CANONICAL=$(grep '^canonical:' sushi-config.yaml | awk '{print $2}' | tr -d "\"'")
           echo "ig_slug=${CANONICAL##*/}" >> $GITHUB_OUTPUT
 
-      - uses: Inera-AB/fhir-ig-workflows/actions/setup-ig-tools@main
+      - uses: Inera-AB/fhir-ig-workflows/actions/setup-ig-tools@v1
         with:
           publisher-version: ${{ inputs.publisher-version }}
 
