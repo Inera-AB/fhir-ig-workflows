@@ -41,18 +41,18 @@ jobs:
         run: |
           BRANCH="${{ github.ref_name }}"
           if [[ "$BRANCH" == "main" ]]; then
-            echo "deploy_path=" >> $GITHUB_OUTPUT
+            echo "deploy_path=" >> "$GITHUB_OUTPUT"
           elif [[ "$BRANCH" == "develop" ]]; then
-            echo "deploy_path=branches/develop" >> $GITHUB_OUTPUT
+            echo "deploy_path=branches/develop" >> "$GITHUB_OUTPUT"
           else
             SLUG=$(echo "$BRANCH" | sed 's|[^a-zA-Z0-9]|-|g' | sed 's|-\+|-|g' | sed 's|^-||;s|-$||')
-            echo "deploy_path=branches/${SLUG}" >> $GITHUB_OUTPUT
+            echo "deploy_path=branches/${SLUG}" >> "$GITHUB_OUTPUT"
           fi
 
           # The IG's folder under ig/ is the last segment of its canonical,
           # e.g. https://fhir.inera.se/ig/template → template
           CANONICAL=$(grep '^canonical:' sushi-config.yaml | awk '{print $2}' | tr -d "\"'")
-          echo "ig_slug=${CANONICAL##*/}" >> $GITHUB_OUTPUT
+          echo "ig_slug=${CANONICAL##*/}" >> "$GITHUB_OUTPUT"
 
       - uses: Inera-AB/fhir-ig-workflows/actions/setup-ig-tools@v1
         with:
@@ -83,10 +83,10 @@ jobs:
         run: |
           MANIFEST=output/package.manifest.json
           PKG_ID=$(jq -r '.name' "$MANIFEST")
-          echo "IG_VERSION=$(jq -r '.version' "$MANIFEST")" >> $GITHUB_ENV
+          echo "IG_VERSION=$(jq -r '.version' "$MANIFEST")" >> "$GITHUB_ENV"
           IG_FILE="output/ImplementationGuide-${PKG_ID}.json"
-          echo "IG_TITLE=$(jq -r '.title' "$IG_FILE")" >> $GITHUB_ENV
-          echo "IG_DESCRIPTION=$(jq -r '.description' "$IG_FILE")" >> $GITHUB_ENV
+          echo "IG_TITLE=$(jq -r '.title' "$IG_FILE")" >> "$GITHUB_ENV"
+          echo "IG_DESCRIPTION=$(jq -r '.description' "$IG_FILE")" >> "$GITHUB_ENV"
 
       - name: Deploy to GitHub Pages (gh-pages branch)
         uses: peaceiris/actions-gh-pages@v4

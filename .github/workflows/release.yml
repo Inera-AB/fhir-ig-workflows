@@ -104,9 +104,11 @@ jobs:
 
           # The layout rule inera.*.* publishes to ig/{3}
           CODE=$(echo "$PACKAGE_ID" | cut -d. -f3)
-          echo "version=${VERSION}"       >> $GITHUB_OUTPUT
-          echo "package_id=${PACKAGE_ID}" >> $GITHUB_OUTPUT
-          echo "code=${CODE}"             >> $GITHUB_OUTPUT
+          {
+            echo "version=${VERSION}"
+            echo "package_id=${PACKAGE_ID}"
+            echo "code=${CODE}"
+          } >> "$GITHUB_OUTPUT"
           echo "Publishing ${PACKAGE_ID}#${VERSION} to ${WEB_REPO} ${WEB_DIR}/${CODE}"
 
       - uses: Inera-AB/fhir-ig-workflows/actions/setup-ig-tools@v1
@@ -129,7 +131,7 @@ jobs:
             java -jar input-cache/publisher.jar -ig ig.ini -tx "$TX"
           fi
           test -f output/qa.json
-          echo "tx=${TX}" >> $GITHUB_OUTPUT
+          echo "tx=${TX}" >> "$GITHUB_OUTPUT"
 
       - name: Check out web root
         env:
@@ -191,7 +193,7 @@ jobs:
           git add -A "$WEB_DIR"
           git commit -q -m "Publish ${{ steps.meta.outputs.package_id }}#${{ steps.meta.outputs.version }}"
           # Another IG may have published since the checkout; rebase onto it.
-          for attempt in 1 2 3; do
+          for _ in 1 2 3; do
             if git push origin "HEAD:${WEB_BRANCH}"; then
               exit 0
             fi
