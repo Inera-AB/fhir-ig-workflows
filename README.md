@@ -13,7 +13,6 @@ An IG repo keeps only short caller workflows that point here. Fixes and improvem
 | `validate.yml` | Runs SUSHI and keeps the output as an artifact | — |
 | `pr-qa.yml` | Builds the IG of a pull request and posts the QA summary as a comment | `contents: read`, `pull-requests: write` |
 | `cleanup.yml` | Removes a deleted branch's build directory from `gh-pages` | `contents: write` |
-| `release-please.yml` | Opens a pull request that bumps the version and adds a change log entry | `contents: write`, `pull-requests: write` |
 
 They use three composite actions from this repo:
 
