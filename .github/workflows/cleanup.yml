@@ -1,0 +1,36 @@
+name: Cleanup branch build
+
+# Removes a deleted branch's build directory from the IG repo's gh-pages.
+# Call it from a workflow triggered by the delete event.
+#
+# Caller needs: permissions contents: write.
+
+on:
+  workflow_call:
+
+jobs:
+  cleanup:
+    name: Remove build for deleted branch
+    runs-on: ubuntu-latest
+    if: github.event.ref_type == 'branch'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Remove branch directory
+        env:
+          BRANCH: ${{ github.event.ref }}
+        run: |
+          SLUG=$(echo "$BRANCH" | sed 's|[^a-zA-Z0-9]|-|g' | sed 's|-\+|-|g' | sed 's|^-||;s|-$||')
+          DIR="branches/${SLUG}"
+          if [ -d "$DIR" ]; then
+            git rm -rf "$DIR"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: remove build for deleted branch ${BRANCH}"
+            git push
+            echo "Removed ${DIR}"
+          else
+            echo "No build directory found for ${BRANCH} (looked for ${DIR}), nothing to clean up."
+          fi

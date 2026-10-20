@@ -1,0 +1,39 @@
+name: IG Publisher QA on PR
+
+# Builds the IG of a pull request (without a terminology server) and posts
+# the QA summary as a comment on the pull request.
+#
+# Caller needs: permissions contents: read, pull-requests: write.
+
+on:
+  workflow_call:
+    inputs:
+      publisher-version:
+        description: IG Publisher release, or latest.
+        type: string
+        default: latest
+
+jobs:
+  qa:
+    name: IG Publisher QA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Inera-AB/fhir-ig-workflows/actions/setup-ig-tools@main
+        with:
+          publisher-version: ${{ inputs.publisher-version }}
+
+      - name: Run SUSHI
+        run: sushi .
+
+      - name: Build IG
+        id: build
+        continue-on-error: true
+        run: java -jar input-cache/publisher.jar -ig ig.ini -tx n/a 2>&1 | tee build.log
+
+      - name: Post QA comment
+        if: always()
+        uses: Inera-AB/fhir-ig-workflows/actions/qa-comment@main
+        with:
+          build-outcome: ${{ steps.build.outcome }}

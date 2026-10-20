@@ -1,0 +1,18 @@
+name: Copy history page assets
+description: >-
+  Copies the FHIR IG history template's styles and scripts into an IG folder
+  in the web root. IG Publisher only does this on a first publication.
+
+inputs:
+  history-template:
+    description: Folder with a checkout of HL7/fhir-ig-history-template.
+    required: true
+  ig-folder:
+    description: The IG's folder in the web root, e.g. web/ig/template.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: python3 "${{ github.action_path }}/copy_history_assets.py" "${{ inputs.history-template }}" "${{ inputs.ig-folder }}"

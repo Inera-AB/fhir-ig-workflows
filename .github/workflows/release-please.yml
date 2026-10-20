@@ -1,0 +1,27 @@
+name: Release Please
+
+# Opens a pull request that bumps the IG version and adds a change log entry,
+# using release-please-config.json and .release-please-manifest.json in the
+# IG repo. Configure "skip-github-release": true there: a tag created by a
+# GitHub Action does not start the release workflow.
+#
+# Caller needs: permissions contents: write, pull-requests: write.
+
+on:
+  workflow_call:
+    inputs:
+      config-file:
+        type: string
+        default: release-please-config.json
+      manifest-file:
+        type: string
+        default: .release-please-manifest.json
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}

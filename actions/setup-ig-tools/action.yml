@@ -1,0 +1,62 @@
+name: Set up IG tools
+description: >-
+  Installs what an IG Publisher build needs: Node.js and SUSHI, Java,
+  Ruby and Jekyll, the FHIR package cache and the IG Publisher itself.
+
+inputs:
+  working-directory:
+    description: The IG's root folder (where sushi-config.yaml and ig.ini are).
+    default: .
+  publisher-version:
+    description: IG Publisher release to download, e.g. 2.0.15, or latest.
+    default: latest
+  sushi-version:
+    description: fsh-sushi version to install, or latest.
+    default: latest
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.3'
+
+    - name: Install Jekyll and SUSHI
+      shell: bash
+      env:
+        SUSHI_VERSION: ${{ inputs.sushi-version }}
+      run: |
+        gem install jekyll
+        npm install -g "fsh-sushi@${SUSHI_VERSION}"
+
+    - name: Restore FHIR package cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.fhir/packages
+        key: fhir-packages-${{ hashFiles(format('{0}/sushi-config.yaml', inputs.working-directory)) }}
+        restore-keys: fhir-packages-
+
+    # Downloaded on every run rather than cached, so every build uses the
+    # same publisher and a stale cached copy never builds a release.
+    - name: Download IG Publisher
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        PUBLISHER_VERSION: ${{ inputs.publisher-version }}
+      run: |
+        mkdir -p input-cache
+        if [ "$PUBLISHER_VERSION" = "latest" ]; then
+          URL=https://github.com/HL7/fhir-ig-publisher/releases/latest/download/publisher.jar
+        else
+          URL="https://github.com/HL7/fhir-ig-publisher/releases/download/${PUBLISHER_VERSION}/publisher.jar"
+        fi
+        curl -fsSL "$URL" -o input-cache/publisher.jar

@@ -1,0 +1,117 @@
+name: Build IG (branch)
+
+# Builds a branch of an IG and deploys it to the IG repo's own GitHub Pages:
+# main to the root, other branches to branches/<branch>. Releases are
+# published by release.yml, never by this workflow.
+#
+# Caller needs: permissions contents: write; secrets: inherit (or
+# FHIR_PORTAL_TOKEN) for the IG catalog entry.
+
+on:
+  workflow_call:
+    inputs:
+      tx-server:
+        description: Terminology server; falls back to none if it is unavailable.
+        type: string
+        default: https://tx.fhir.org/r4
+      catalog-repo:
+        description: Repo with the IG catalog that receives the ig-deployed event.
+        type: string
+        default: inera-ab/fhir-portal
+      publisher-version:
+        description: IG Publisher release, or latest.
+        type: string
+        default: latest
+    secrets:
+      FHIR_PORTAL_TOKEN:
+        required: false
+
+jobs:
+  build:
+    name: Build IG
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-${{ github.repository }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine deploy path
+        id: meta
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          if [[ "$BRANCH" == "main" ]]; then
+            echo "deploy_path=" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == "develop" ]]; then
+            echo "deploy_path=branches/develop" >> $GITHUB_OUTPUT
+          else
+            SLUG=$(echo "$BRANCH" | sed 's|[^a-zA-Z0-9]|-|g' | sed 's|-\+|-|g' | sed 's|^-||;s|-$||')
+            echo "deploy_path=branches/${SLUG}" >> $GITHUB_OUTPUT
+          fi
+
+          # The IG's folder under ig/ is the last segment of its canonical,
+          # e.g. https://fhir.inera.se/ig/template → template
+          CANONICAL=$(grep '^canonical:' sushi-config.yaml | awk '{print $2}' | tr -d "\"'")
+          echo "ig_slug=${CANONICAL##*/}" >> $GITHUB_OUTPUT
+
+      - uses: Inera-AB/fhir-ig-workflows/actions/setup-ig-tools@main
+        with:
+          publisher-version: ${{ inputs.publisher-version }}
+
+      - name: Build IG
+        env:
+          TX: ${{ inputs.tx-server }}
+        run: |
+          sushi .
+          build() {
+            java -jar input-cache/publisher.jar -ig ig.ini "$@"
+          }
+          if build -tx "$TX"; then
+            echo "Build succeeded with terminology server."
+          else
+            echo "TX attempt 1 failed, retrying in 30s..."
+            sleep 30
+            if build -tx "$TX"; then
+              echo "Build succeeded on retry."
+            else
+              echo "TX server unavailable — building without terminology validation."
+              build -tx n/a
+            fi
+          fi
+
+      - name: Read IG metadata from build output
+        run: |
+          MANIFEST=output/package.manifest.json
+          PKG_ID=$(jq -r '.name' "$MANIFEST")
+          echo "IG_VERSION=$(jq -r '.version' "$MANIFEST")" >> $GITHUB_ENV
+          IG_FILE="output/ImplementationGuide-${PKG_ID}.json"
+          echo "IG_TITLE=$(jq -r '.title' "$IG_FILE")" >> $GITHUB_ENV
+          echo "IG_DESCRIPTION=$(jq -r '.description' "$IG_FILE")" >> $GITHUB_ENV
+
+      - name: Deploy to GitHub Pages (gh-pages branch)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./output
+          destination_dir: ${{ steps.meta.outputs.deploy_path }}
+          keep_files: true
+          commit_message: "deploy: ${{ github.ref_name }} → ${{ steps.meta.outputs.deploy_path }}"
+
+      - name: Update IG catalog
+        env:
+          FHIR_PORTAL_TOKEN: ${{ secrets.FHIR_PORTAL_TOKEN }}
+          GH_TOKEN: ${{ secrets.FHIR_PORTAL_TOKEN }}
+          CATALOG_REPO: ${{ inputs.catalog-repo }}
+        run: |
+          if [ -z "$FHIR_PORTAL_TOKEN" ]; then
+            echo "FHIR_PORTAL_TOKEN is not set; skipping the IG catalog."
+            exit 0
+          fi
+          gh api "repos/${CATALOG_REPO}/dispatches" --method POST \
+            -f event_type=ig-deployed \
+            -f "client_payload[ig_name]=${{ github.event.repository.name }}" \
+            -f "client_payload[ig_slug]=${{ steps.meta.outputs.ig_slug }}" \
+            -f "client_payload[ig_title]=${IG_TITLE}" \
+            -f "client_payload[ig_description]=${IG_DESCRIPTION}" \
+            -f "client_payload[ig_version]=${IG_VERSION}" \
+            -f "client_payload[is_release]=false"

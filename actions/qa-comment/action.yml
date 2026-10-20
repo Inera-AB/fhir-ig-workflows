@@ -1,0 +1,25 @@
+name: IG Publisher QA comment
+description: >-
+  Posts or updates a pull request comment with the IG Publisher QA summary,
+  read from build.log and output/qa.txt in the working directory.
+
+inputs:
+  build-outcome:
+    description: Outcome of the build step (success or failure).
+    required: true
+  github-token:
+    description: Token used to post the comment.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@v7
+      env:
+        BUILD_OUTCOME: ${{ inputs.build-outcome }}
+        QA_COMMENT_SCRIPT: ${{ github.action_path }}/qa-comment.js
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const run = require(process.env.QA_COMMENT_SCRIPT);
+          await run({ github, context });

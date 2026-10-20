@@ -1,0 +1,45 @@
+name: Validate FSH
+
+# Runs SUSHI on an IG and keeps its output as an artifact.
+
+on:
+  workflow_call:
+    inputs:
+      sushi-version:
+        description: fsh-sushi version, or latest.
+        type: string
+        default: latest
+
+jobs:
+  sushi:
+    name: SUSHI validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install SUSHI
+        env:
+          SUSHI_VERSION: ${{ inputs.sushi-version }}
+        run: npm install -g "fsh-sushi@${SUSHI_VERSION}"
+
+      - name: Restore FHIR package cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.fhir/packages
+          key: fhir-packages-${{ hashFiles('sushi-config.yaml') }}
+          restore-keys: fhir-packages-
+
+      - name: Run SUSHI
+        run: sushi .
+
+      - name: Upload SUSHI output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fsh-generated
+          path: fsh-generated/
+          retention-days: 7
