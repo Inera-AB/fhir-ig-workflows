@@ -9,12 +9,12 @@ An IG repo keeps only short caller workflows that point here. Fixes and improvem
 | Workflow | What it does | Caller permissions |
 |---|---|---|
 | `build.yml` | Branch build. Deploys `main` to the root and other branches to `branches/<branch>/` of the IG repo's own GitHub Pages; updates the IG's entry in the IG catalog | `contents: write` |
-| `release.yml` | Publishes a release with IG Publisher's publication mode (`-go-publish`) into the shared web root. A tag publishes to `web-repo`, a run on a branch to `test-web-repo` | `contents: read` |
+| `release.yml` | Publishes a release with IG Publisher's publication mode (`-go-publish`) into the shared web root, at `https://fhir.inera.se/ig/<name>/<version>/` (`<name>` is the third part of the package id). A tag publishes to `web-repo`, a manual run on a branch to `test-web-repo` | `contents: read` |
 | `validate.yml` | Runs SUSHI and keeps the output as an artifact | — |
 | `pr-qa.yml` | Builds the IG of a pull request and posts the QA summary as a comment | `contents: read`, `pull-requests: write` |
 | `cleanup.yml` | Removes a deleted branch's build directory from `gh-pages` | `contents: write` |
 
-They use three composite actions from this repo:
+They use four composite actions from this repo:
 
 - `actions/setup-ig-tools`: Node.js and SUSHI, Java, Ruby and Jekyll, the FHIR package cache and the IG Publisher
 - `actions/qa-comment`: the QA comment on pull requests
@@ -23,7 +23,22 @@ They use three composite actions from this repo:
 
 ## Using them from an IG repo
 
-Each caller is a few lines. These are the files in [IneraFHIRTemplate](https://github.com/Inera-AB/IneraFHIRTemplate/tree/main/.github/workflows):
+An IG repo has five callers, one per workflow. They come with [IneraFHIRTemplate](https://github.com/Inera-AB/IneraFHIRTemplate/tree/main/.github/workflows) when the repo is created with *Use this template*. Setting up the repo (Actions write permissions, `FHIR_PORTAL_TOKEN`, GitHub Pages, the `develop` branch) is described in the template's README under [Creating a new IG from this template](https://github.com/Inera-AB/IneraFHIRTemplate#creating-a-new-ig-from-this-template).
+
+```yaml
+# .github/workflows/publish.yml
+name: Build and publish IG
+on:
+  push:
+    branches: [main, develop, 'feature/**', 'support/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    uses: Inera-AB/fhir-ig-workflows/.github/workflows/build.yml@v1
+    secrets: inherit
+```
 
 ```yaml
 # .github/workflows/release.yml
@@ -42,19 +57,46 @@ jobs:
     secrets: inherit
 ```
 
+The template's own `release.yml` also has `with: package-feed: false`, which keeps the template out of the FHIR package registry. An IG made from the template removes those two lines.
+
 ```yaml
-# .github/workflows/publish.yml
-name: Build and publish IG
+# .github/workflows/validate.yml
+name: Validate FSH
 on:
   push:
-    branches: [main, develop, 'feature/**', 'support/**']
-  workflow_dispatch:
+    branches-ignore: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    uses: Inera-AB/fhir-ig-workflows/.github/workflows/validate.yml@v1
+```
+
+```yaml
+# .github/workflows/pr-qa.yml
+name: IG Publisher QA on PR
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  qa:
+    uses: Inera-AB/fhir-ig-workflows/.github/workflows/pr-qa.yml@v1
+```
+
+```yaml
+# .github/workflows/cleanup.yml
+name: Cleanup branch build
+on:
+  delete:
 permissions:
   contents: write
 jobs:
-  build:
-    uses: Inera-AB/fhir-ig-workflows/.github/workflows/build.yml@v1
-    secrets: inherit
+  cleanup:
+    uses: Inera-AB/fhir-ig-workflows/.github/workflows/cleanup.yml@v1
 ```
 
 Inputs with their defaults are listed at the top of each workflow. The ones a caller is most likely to change:
@@ -66,7 +108,7 @@ Inputs with their defaults are listed at the top of each workflow. The ones a ca
 | `test-web-repo` | `release` | `inera-ab/fhir-portal-test` |
 | `catalog-repo` | `build` | `inera-ab/fhir-portal` |
 | `publisher-version` | `build`, `release`, `pr-qa` | `latest` |
-| `package-feed` | `release` | `true`. `false` keeps the IG out of the package feed, and so out of the FHIR package registry (packages.fhir.org), while it is still published on the web site. For a template or a demo IG |
+| `package-feed` | `release` | `true`. `false` keeps the IG out of the package feed, and so out of the FHIR package registry (packages.fhir.org), while it is still published on the web site. For a template or a demo IG. (Inera's package feed is not registered in FHIR/ig-registry yet; that happens when the first real IG is published) |
 
 ### Secrets
 
@@ -82,6 +124,8 @@ jobs:
     secrets:
       FHIR_PORTAL_TOKEN: ${{ secrets.WEB_TOKEN }}
 ```
+
+The process for IG authors (branches, versions, releases, registration) is described in Swedish in the template's [`docs/`](https://github.com/Inera-AB/IneraFHIRTemplate/tree/main/docs).
 
 The web repo needs the files IG Publisher's publication mode expects in its web root (`publish-setup.json`, feeds, `package-registry.json`, `templates/`); see [inera-ab/fhir-portal](https://github.com/Inera-AB/fhir-portal).
 
