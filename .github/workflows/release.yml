@@ -195,7 +195,7 @@ jobs:
 
       - name: Keep the IG out of the package feed
         if: ${{ !inputs.package-feed }}
-        uses: Inera-AB/fhir-ig-workflows/actions/package-feed-exclude@claude/clever-darwin-n9oo7i
+        uses: Inera-AB/fhir-ig-workflows/actions/package-feed-exclude@v1
         with:
           web-root: web/${{ env.WEB_DIR }}
           package-id: ${{ steps.meta.outputs.package_id }}
