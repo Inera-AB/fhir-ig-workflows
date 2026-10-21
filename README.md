@@ -19,6 +19,7 @@ They use three composite actions from this repo:
 - `actions/setup-ig-tools`: Node.js and SUSHI, Java, Ruby and Jekyll, the FHIR package cache and the IG Publisher
 - `actions/qa-comment`: the QA comment on pull requests
 - `actions/history-assets`: copies the history template's styles and scripts into an IG folder in the web root, which the publisher only does on a first publication
+- `actions/package-feed-exclude`: removes an IG's packages from the web root's package feed (used by `release.yml` with `package-feed: false`)
 
 ## Using them from an IG repo
 
@@ -65,6 +66,7 @@ Inputs with their defaults are listed at the top of each workflow. The ones a ca
 | `test-web-repo` | `release` | `inera-ab/fhir-portal-test` |
 | `catalog-repo` | `build` | `inera-ab/fhir-portal` |
 | `publisher-version` | `build`, `release`, `pr-qa` | `latest` |
+| `package-feed` | `release` | `true`. `false` keeps the IG out of the package feed, and so out of the FHIR package registry (packages.fhir.org), while it is still published on the web site. For a template or a demo IG |
 
 ### Secrets
 
@@ -98,6 +100,7 @@ Before moving `v1`, test the change from an IG repo against the test web root: p
 
 ```bash
 node --test actions/qa-comment/*.test.js
+(cd actions/package-feed-exclude && python3 -m unittest test_remove_feed_items)
 actionlint
 ```
 

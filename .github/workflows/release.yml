@@ -48,6 +48,14 @@ on:
         description: IG Publisher release, or latest.
         type: string
         default: latest
+      package-feed:
+        description: >-
+          List the IG's packages in the web root's package feed, which the
+          FHIR package registry (packages.fhir.org) reads. false for an IG
+          that is published on the web site but should not be in the
+          registry, such as a template.
+        type: boolean
+        default: true
     secrets:
       FHIR_PORTAL_TOKEN:
         required: false
@@ -184,6 +192,13 @@ jobs:
             -temp "$RUNNER_TEMP/publish" \
             -zips "$RUNNER_TEMP/publish-zips" \
             -tx "${{ steps.build.outputs.tx }}"
+
+      - name: Keep the IG out of the package feed
+        if: ${{ !inputs.package-feed }}
+        uses: Inera-AB/fhir-ig-workflows/actions/package-feed-exclude@v1
+        with:
+          web-root: web/${{ env.WEB_DIR }}
+          package-id: ${{ steps.meta.outputs.package_id }}
 
       - name: Push web root
         run: |

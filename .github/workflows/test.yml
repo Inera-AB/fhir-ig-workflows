@@ -20,6 +20,10 @@ jobs:
       - name: Test the QA comment script
         run: node --test actions/qa-comment/*.test.js
 
+      - name: Test the package feed script
+        working-directory: actions/package-feed-exclude
+        run: python3 -m unittest -v test_remove_feed_items
+
       - name: Lint workflows
         run: |
           bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
