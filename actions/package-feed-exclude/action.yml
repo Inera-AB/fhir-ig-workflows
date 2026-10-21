@@ -1,0 +1,28 @@
+name: Exclude an IG from the package feed
+description: >-
+  Removes an IG's packages from the web root's package feed, so the FHIR
+  package registry does not pick them up. For IGs that are published on the
+  web site but should not be in the registry, such as a template.
+
+inputs:
+  web-root:
+    description: The web root folder (with publish-setup.json), e.g. web/ig.
+    required: true
+  package-id:
+    description: The IG's package id.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        WEB_ROOT: ${{ inputs.web-root }}
+        PACKAGE_ID: ${{ inputs.package-id }}
+      run: |
+        FEED=$(jq -r '.feeds.package // empty' "${WEB_ROOT}/publish-setup.json")
+        if [ -z "$FEED" ]; then
+          echo "publish-setup.json names no package feed; nothing to do."
+          exit 0
+        fi
+        python3 "${{ github.action_path }}/remove_feed_items.py" "${WEB_ROOT}/${FEED}" "$PACKAGE_ID"
