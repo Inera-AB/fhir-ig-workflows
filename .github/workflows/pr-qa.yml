@@ -1,13 +1,19 @@
 name: IG Publisher QA on PR
 
-# Builds the IG of a pull request (without a terminology server) and posts
-# the QA summary as a comment on the pull request.
+# Builds the IG of a pull request and posts the QA summary as a comment on
+# the pull request. The build runs without a terminology server unless the
+# caller sets tx-server; an R5 IG needs https://tx.fhir.org/r5, since some
+# R5 core value sets cannot be checked without one.
 #
 # Caller needs: permissions contents: read, pull-requests: write.
 
 on:
   workflow_call:
     inputs:
+      tx-server:
+        description: Terminology server, or n/a for none.
+        type: string
+        default: n/a
       publisher-version:
         description: IG Publisher release, or latest.
         type: string
@@ -30,7 +36,9 @@ jobs:
       - name: Build IG
         id: build
         continue-on-error: true
-        run: java -jar input-cache/publisher.jar -ig ig.ini -tx n/a 2>&1 | tee build.log
+        env:
+          TX: ${{ inputs.tx-server }}
+        run: java -jar input-cache/publisher.jar -ig ig.ini -tx "$TX" 2>&1 | tee build.log
 
       - name: Post QA comment
         if: always()
