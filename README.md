@@ -103,7 +103,7 @@ Inputs with their defaults are listed at the top of each workflow. The ones a ca
 
 | Input | Workflows | Default |
 |---|---|---|
-| `tx-server` | `build`, `release` | `https://tx.fhir.org/r4` (an R5 IG uses `https://tx.fhir.org/r5`) |
+| `tx-server` | `build`, `release`, `pr-qa` | `https://tx.fhir.org/r4` in `build` and `release`; `n/a` (no terminology server) in `pr-qa`. An R5 IG uses `https://tx.fhir.org/r5` in all three: without a server, the QA build reports false errors on R5 core value sets such as `SearchParameter.base` |
 | `web-repo` | `release` | `inera-ab/fhir-portal` |
 | `test-web-repo` | `release` | `inera-ab/fhir-portal-test` |
 | `catalog-repo` | `build` | `inera-ab/fhir-portal` |
