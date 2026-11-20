@@ -8,8 +8,11 @@ inputs:
     description: The IG's root folder (where sushi-config.yaml and ig.ini are).
     default: .
   publisher-version:
-    description: IG Publisher release to download, e.g. 2.0.15, or latest.
-    default: latest
+    description: >-
+      IG Publisher release to download, e.g. 3.0.4, or latest. Empty (the
+      default) means the version this release of fhir-ig-workflows pins,
+      PINNED_PUBLISHER_VERSION below.
+    default: ''
   sushi-version:
     description: fsh-sushi version to install, or latest.
     default: latest
@@ -47,13 +50,23 @@ runs:
 
     # Downloaded on every run rather than cached, so every build uses the
     # same publisher and a stale cached copy never builds a release.
+    #
+    # PINNED_PUBLISHER_VERSION is the one place that decides which IG
+    # Publisher every IG builds and publishes with, unless a caller asks for
+    # another. A new IG Publisher release can change published pages (3.0.5
+    # numbered every page heading ["9"] instead of 9), so it is raised in a
+    # pull request here, tested from an IG against the test web root, and
+    # released as a new v1.x.y; see "Upgrading the IG Publisher" in README.
     - name: Download IG Publisher
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         PUBLISHER_VERSION: ${{ inputs.publisher-version }}
+        PINNED_PUBLISHER_VERSION: 3.0.4
       run: |
         mkdir -p input-cache
+        PUBLISHER_VERSION="${PUBLISHER_VERSION:-$PINNED_PUBLISHER_VERSION}"
+        echo "IG Publisher ${PUBLISHER_VERSION}"
         if [ "$PUBLISHER_VERSION" = "latest" ]; then
           URL=https://github.com/HL7/fhir-ig-publisher/releases/latest/download/publisher.jar
         else
