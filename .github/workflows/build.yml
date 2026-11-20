@@ -19,9 +19,11 @@ on:
         type: string
         default: inera-ab/fhir-portal
       publisher-version:
-        description: IG Publisher release, or latest.
+        description: >-
+          IG Publisher release, or latest. Leave empty for the version
+          fhir-ig-workflows pins (see actions/setup-ig-tools).
         type: string
-        default: latest
+        default: ''
     secrets:
       FHIR_PORTAL_TOKEN:
         required: false

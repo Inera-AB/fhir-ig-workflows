@@ -45,9 +45,11 @@ on:
         type: string
         default: 8g
       publisher-version:
-        description: IG Publisher release, or latest.
+        description: >-
+          IG Publisher release, or latest. Leave empty for the version
+          fhir-ig-workflows pins (see actions/setup-ig-tools).
         type: string
-        default: latest
+        default: ''
       package-feed:
         description: >-
           List the IG's packages in the web root's package feed, which the

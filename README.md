@@ -107,7 +107,7 @@ Inputs with their defaults are listed at the top of each workflow. The ones a ca
 | `web-repo` | `release` | `inera-ab/fhir-portal` |
 | `test-web-repo` | `release` | `inera-ab/fhir-portal-test` |
 | `catalog-repo` | `build` | `inera-ab/fhir-portal` |
-| `publisher-version` | `build`, `release`, `pr-qa` | `latest` |
+| `publisher-version` | `build`, `release`, `pr-qa` | Empty: the IG Publisher version this release of fhir-ig-workflows pins, currently 3.0.4. An IG leaves it out; set it only to try a newer release or to stay on an older one for a while. `latest` takes the newest IG Publisher release |
 | `package-feed` | `release` | `true`. `false` keeps the IG out of the package feed, and so out of the FHIR package registry (packages.fhir.org), while it is still published on the web site. For a template or a demo IG. (Inera's package feed is not registered in FHIR/ig-registry yet; that happens when the first real IG is published) |
 
 ### Secrets
@@ -139,6 +139,16 @@ Callers pin a major version: `@v1`. `v1` is a moving tag that points to the late
 The workflows refer to the composite actions in this repo by the same major version (`@v1`). A new major version updates those references too.
 
 Before moving `v1`, test the change from an IG repo against the test web root: point a branch's caller at the commit (`@<sha>`) and run *Publish release* manually on that branch. A change to a composite action is only picked up if the workflow's reference to it points at the same commit while testing.
+
+## Upgrading the IG Publisher
+
+Every IG builds and publishes with the IG Publisher version set as `PINNED_PUBLISHER_VERSION` in `actions/setup-ig-tools/action.yml`, not with the newest release. A new IG Publisher release can change what gets published (3.0.5 numbered every page heading `["9"]` instead of `9`), and a published version is never published again, so a new release reaches the IGs only after it has been tried:
+
+1. Raise `PINNED_PUBLISHER_VERSION` in a pull request here.
+2. Point a branch of an IG repo (IneraFHIRTemplate, and an R5 IG such as tjanstekatalog) at the pull request's commit (`@<sha>`), open a pull request there and compare the QA comment with the one from the current version, then run *Publish release* manually on the branch and check the pages in the test web root.
+3. Merge, tag `v1.x.y` and move `v1` to it (see [Versions](#versions)). Every IG on `@v1` uses the new version from its next run.
+
+To try a newer IG Publisher in a single IG before that, set `publisher-version` in its callers, and remove it again once the pinned version has caught up.
 
 ## Development
 
