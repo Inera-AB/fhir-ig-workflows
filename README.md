@@ -112,7 +112,17 @@ Inputs with their defaults are listed at the top of each workflow. The ones a ca
 
 ### Secrets
 
-`release.yml` and `build.yml` use `FHIR_PORTAL_TOKEN`: a fine-grained PAT with **Contents: Read and write** on the web repos. Within the `inera-ab` organisation, `secrets: inherit` passes it on. Repos outside the organisation pass their own token explicitly:
+`release.yml` and `build.yml` write to the web repos with a token from the organisation's GitHub App (`actions/web-token`):
+
+| Secret | Content |
+|---|---|
+| `FHIR_PORTAL_APP_ID` | The GitHub App's id. |
+| `FHIR_PORTAL_APP_KEY` | The GitHub App's private key (the whole `.pem` file). |
+| `FHIR_PORTAL_TOKEN` | Optional fallback: a fine-grained PAT with **Contents: Read and write** on the web repos. Used only when the app secrets are not set, and the run then warns. To be removed. |
+
+The app has **Contents: Read and write** and is installed only on the web repos (`inera-ab/fhir-portal`, `inera-ab/fhir-portal-test`). Its secrets are organisation secrets, available to the IG repos that may publish; `secrets: inherit` passes them on. A token is fetched right before it is used, since an app token is valid for one hour and a publication run can take longer.
+
+Repos outside the organisation pass their own token explicitly:
 
 ```yaml
 jobs:

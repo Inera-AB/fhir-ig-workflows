@@ -5,7 +5,8 @@ name: Build IG (branch)
 # published by release.yml, never by this workflow.
 #
 # Caller needs: permissions contents: write; secrets: inherit (or
-# FHIR_PORTAL_TOKEN) for the IG catalog entry.
+# FHIR_PORTAL_APP_ID and FHIR_PORTAL_APP_KEY, or FHIR_PORTAL_TOKEN) for the
+# IG catalog entry.
 
 on:
   workflow_call:
@@ -25,7 +26,14 @@ on:
         type: string
         default: ''
     secrets:
+      FHIR_PORTAL_APP_ID:
+        description: Id of the GitHub App that may write to the web repos.
+        required: false
+      FHIR_PORTAL_APP_KEY:
+        description: The GitHub App's private key.
+        required: false
       FHIR_PORTAL_TOKEN:
+        description: Personal access token, used only if the app is not set.
         required: false
 
 jobs:
@@ -99,14 +107,22 @@ jobs:
           keep_files: true
           commit_message: "deploy: ${{ github.ref_name }} → ${{ steps.meta.outputs.deploy_path }}"
 
+      - name: Token for the IG catalog
+        id: catalog-token
+        uses: Inera-AB/fhir-ig-workflows/actions/web-token@v1
+        with:
+          repo: ${{ inputs.catalog-repo }}
+          app-id: ${{ secrets.FHIR_PORTAL_APP_ID }}
+          private-key: ${{ secrets.FHIR_PORTAL_APP_KEY }}
+          fallback-token: ${{ secrets.FHIR_PORTAL_TOKEN }}
+
       - name: Update IG catalog
         env:
-          FHIR_PORTAL_TOKEN: ${{ secrets.FHIR_PORTAL_TOKEN }}
-          GH_TOKEN: ${{ secrets.FHIR_PORTAL_TOKEN }}
+          GH_TOKEN: ${{ steps.catalog-token.outputs.token }}
           CATALOG_REPO: ${{ inputs.catalog-repo }}
         run: |
-          if [ -z "$FHIR_PORTAL_TOKEN" ]; then
-            echo "FHIR_PORTAL_TOKEN is not set; skipping the IG catalog."
+          if [ -z "$GH_TOKEN" ]; then
+            echo "No token for ${CATALOG_REPO} (FHIR_PORTAL_APP_ID/FHIR_PORTAL_APP_KEY or FHIR_PORTAL_TOKEN); skipping the IG catalog."
             exit 0
           fi
           gh api "repos/${CATALOG_REPO}/dispatches" --method POST \
