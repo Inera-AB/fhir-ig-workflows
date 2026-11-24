@@ -1,0 +1,50 @@
+name: Token for the web repo
+description: >-
+  Gives a token with Contents: Read and write on one repo, for pushing to the
+  web root and sending the ig-deployed event. Comes from the organisation's
+  GitHub App when its id and private key are given, otherwise from the
+  fallback token (a personal access token). An app token is valid for one
+  hour, so get a new one right before each use rather than at the start of
+  a long job.
+
+inputs:
+  repo:
+    description: The repo the token is for, as owner/name.
+    required: true
+  app-id:
+    description: The GitHub App's id (secret FHIR_PORTAL_APP_ID).
+    default: ''
+  private-key:
+    description: The GitHub App's private key (secret FHIR_PORTAL_APP_KEY).
+    default: ''
+  fallback-token:
+    description: Token used when no app is given (secret FHIR_PORTAL_TOKEN).
+    default: ''
+
+outputs:
+  token:
+    description: The token, or empty if neither the app nor a fallback token is set.
+    value: ${{ steps.app.outputs.token || inputs.fallback-token }}
+  source:
+    description: app, pat or none.
+    value: ${{ steps.app.outputs.token && 'app' || (inputs.fallback-token && 'pat' || 'none') }}
+
+runs:
+  using: composite
+  steps:
+    - id: repo
+      shell: bash
+      env:
+        REPO: ${{ inputs.repo }}
+      run: |
+        echo "owner=${REPO%%/*}" >> "$GITHUB_OUTPUT"
+        echo "name=${REPO#*/}" >> "$GITHUB_OUTPUT"
+
+    - id: app
+      if: inputs.app-id != '' && inputs.private-key != ''
+      uses: actions/create-github-app-token@v2
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+        owner: ${{ steps.repo.outputs.owner }}
+        repositories: ${{ steps.repo.outputs.name }}

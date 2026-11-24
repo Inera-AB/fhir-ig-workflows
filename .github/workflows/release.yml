@@ -16,7 +16,9 @@ name: Publish IG release
 # from sushi-config.yaml so they cannot drift from the IG.
 #
 # Caller needs: permissions contents: read; secrets: inherit (or
-# FHIR_PORTAL_TOKEN), a token with Contents: Read and write on the web repos.
+# FHIR_PORTAL_APP_ID and FHIR_PORTAL_APP_KEY, the organisation's GitHub App
+# with Contents: Read and write on the web repos). FHIR_PORTAL_TOKEN, a
+# personal access token with the same access, is used if the app is not set.
 
 on:
   workflow_call:
@@ -59,7 +61,14 @@ on:
         type: boolean
         default: true
     secrets:
+      FHIR_PORTAL_APP_ID:
+        description: Id of the GitHub App that may write to the web repos.
+        required: false
+      FHIR_PORTAL_APP_KEY:
+        description: The GitHub App's private key.
+        required: false
       FHIR_PORTAL_TOKEN:
+        description: Personal access token, used only if the app is not set.
         required: false
 
 env:
@@ -143,18 +152,31 @@ jobs:
           test -f output/qa.json
           echo "tx=${TX}" >> "$GITHUB_OUTPUT"
 
+      - name: Token for the web root
+        id: checkout-token
+        uses: Inera-AB/fhir-ig-workflows/actions/web-token@v1
+        with:
+          repo: ${{ env.WEB_REPO }}
+          app-id: ${{ secrets.FHIR_PORTAL_APP_ID }}
+          private-key: ${{ secrets.FHIR_PORTAL_APP_KEY }}
+          fallback-token: ${{ secrets.FHIR_PORTAL_TOKEN }}
+
       - name: Check out web root
         env:
-          FHIR_PORTAL_TOKEN: ${{ secrets.FHIR_PORTAL_TOKEN }}
+          WEB_TOKEN: ${{ steps.checkout-token.outputs.token }}
+          TOKEN_SOURCE: ${{ steps.checkout-token.outputs.source }}
         run: |
-          if [ -z "$FHIR_PORTAL_TOKEN" ]; then
-            echo "::error::The secret FHIR_PORTAL_TOKEN is not set."
+          if [ -z "$WEB_TOKEN" ]; then
+            echo "::error::No token for ${WEB_REPO}. Set the secrets FHIR_PORTAL_APP_ID and FHIR_PORTAL_APP_KEY (or FHIR_PORTAL_TOKEN)."
             exit 1
+          fi
+          if [ "$TOKEN_SOURCE" = "pat" ]; then
+            echo "::warning::Publishing with the personal access token FHIR_PORTAL_TOKEN. Switch to the GitHub App (FHIR_PORTAL_APP_ID, FHIR_PORTAL_APP_KEY)."
           fi
           # Only this IG's folder and the shared files at the web root are
           # needed, not every version of every IG.
           git clone --depth 1 --filter=blob:none --sparse --branch "$WEB_BRANCH" \
-            "https://x-access-token:${FHIR_PORTAL_TOKEN}@github.com/${WEB_REPO}.git" web
+            "https://x-access-token:${WEB_TOKEN}@github.com/${WEB_REPO}.git" web
           git -C web sparse-checkout set "${WEB_DIR}/templates" "${WEB_DIR}/${{ steps.meta.outputs.code }}"
 
       - name: Check that this version and description are new
@@ -202,9 +224,23 @@ jobs:
           web-root: web/${{ env.WEB_DIR }}
           package-id: ${{ steps.meta.outputs.package_id }}
 
+      # The publication run can take longer than an app token lives (one
+      # hour), so the push gets a new token.
+      - name: Token for the push
+        id: push-token
+        uses: Inera-AB/fhir-ig-workflows/actions/web-token@v1
+        with:
+          repo: ${{ env.WEB_REPO }}
+          app-id: ${{ secrets.FHIR_PORTAL_APP_ID }}
+          private-key: ${{ secrets.FHIR_PORTAL_APP_KEY }}
+          fallback-token: ${{ secrets.FHIR_PORTAL_TOKEN }}
+
       - name: Push web root
+        env:
+          WEB_TOKEN: ${{ steps.push-token.outputs.token }}
         run: |
           cd web
+          git remote set-url origin "https://x-access-token:${WEB_TOKEN}@github.com/${WEB_REPO}.git"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A "$WEB_DIR"
@@ -242,7 +278,7 @@ jobs:
 
       - name: Update IG catalog
         env:
-          GH_TOKEN: ${{ secrets.FHIR_PORTAL_TOKEN }}
+          GH_TOKEN: ${{ steps.push-token.outputs.token }}
         run: |
           IG_FILE="source/output/ImplementationGuide-${{ steps.meta.outputs.package_id }}.json"
           # Only a milestone becomes the IG's latest version in the catalog; a
