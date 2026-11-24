@@ -142,11 +142,12 @@ Before moving `v1`, test the change from an IG repo against the test web root: p
 
 ## Upgrading the IG Publisher
 
-Every IG builds and publishes with the IG Publisher version set as `PINNED_PUBLISHER_VERSION` in `actions/setup-ig-tools/action.yml`, not with the newest release. A new IG Publisher release can change what gets published (3.0.5 numbered every page heading `["9"]` instead of `9`), and a published version is never published again, so a new release reaches the IGs only after it has been tried:
+Every IG builds and publishes with the IG Publisher version set as `PINNED_PUBLISHER_VERSION` in `actions/setup-ig-tools/action.yml`, not with the newest release. A new IG Publisher release can change what gets published, and a published version is never published again, so a new release reaches the IGs only after it has been tried:
 
-1. Raise `PINNED_PUBLISHER_VERSION` in a pull request here.
-2. Point a branch of an IG repo (IneraFHIRTemplate, and an R5 IG such as tjanstekatalog) at the pull request's commit (`@<sha>`), open a pull request there and compare the QA comment with the one from the current version, then run *Publish release* manually on the branch and check the pages in the test web root.
-3. Merge, tag `v1.x.y` and move `v1` to it (see [Versions](#versions)). Every IG on `@v1` uses the new version from its next run.
+1. Run *Test: ny IG Publisher-version* in [fhir-portal-test](https://github.com/Inera-AB/fhir-portal-test) with the new version. It builds a test IG with the pinned and the new version and shows the differences in QA messages and on every page.
+2. Raise `PINNED_PUBLISHER_VERSION` in a pull request here.
+3. Point a branch of an IG repo (IneraFHIRTemplate, and an R5 IG such as tjanstekatalog) at the pull request's commit (`@<sha>`), open a pull request there and compare the QA comment with the one from the current version, then run *Publish release* manually on the branch and check the pages in the test web root.
+4. Merge, tag `v1.x.y` and move `v1` to it (see [Versions](#versions)). Every IG on `@v1` uses the new version from its next run.
 
 To try a newer IG Publisher in a single IG before that, set `publisher-version` in its callers, and remove it again once the pinned version has caught up.
 
